@@ -1,11 +1,10 @@
-from prefect.input import RunInput
-from prefect import get_run_logger
-from prefect.blocks.system import JSON
-from prefect import task, flow, get_run_logger, pause_flow_run
-from pydantic import Field
-from prefect.artifacts import create_table_artifact
-import requests
 import marvin_extension as ai_functions
+import requests
+from prefect import flow, get_run_logger, pause_flow_run, task
+from prefect.artifacts import create_table_artifact
+from prefect.blocks.system import JSON
+from prefect.input import RunInput
+from pydantic import Field
 
 
 URL = "https://randomuser.me/api/"
@@ -24,10 +23,8 @@ DEFAULT_FEATURES_TO_DROP = [
     "nat",
 ]
 
-
-class CreateArtifact(RunInput):
-    create_artifact: bool = Field(description="Would you like to create an artifact?")
-
+class userApproval(RunInput):
+    approve: bool = Field(description="Would you like to approve?")
 
 class CleanedInput(RunInput):
     features_to_keep: list[str]
@@ -58,7 +55,7 @@ def user_input_remove_features(url: str):
     raw_data = fetch(url)
 
     features = "\n".join(raw_data.get("results")[0].keys())
-
+    print(f"type(features): {type(features)}")
     description_md = (
         "## Features available:"
         f"\n```json{features}\n```\n"
@@ -75,21 +72,20 @@ def user_input_remove_features(url: str):
 
 @flow(name="Create Artifact")
 def create_artifact():
-
     features = JSON.load("all-users-json").value
     description_md = (
-        "### Features available:\n"
+        "### Artifact Object:\n"
         f"```{features}```\n"
         "### Would you like to create an artifact?"
     )
 
     logger = get_run_logger()
     create_artifact_input = pause_flow_run(
-        wait_for_input=CreateArtifact.with_initial_data(
-            description=description_md, create_artifact=False
+        wait_for_input=userApproval.with_initial_data(
+            description=description_md, approve=False
         )
     )
-    if create_artifact_input.create_artifact == True:
+    if create_artifact_input.approve:
         logger.info("Report approved! Creating artifact...")
         create_table_artifact(
             key="table-of-users", table=JSON.load("all-users-json").value
@@ -123,7 +119,12 @@ def create_names():
     return df
 
 
-if __name__ == "__main__":
-    list_of_names = create_names()
+@flow(name="Interactive Workflow")
+def interactive_workflow():
+    create_names()
     create_artifact()
-    ai_functions.extract_information()
+    results = ai_functions.extract_information()
+    ai_functions.upload_to_s3(results)
+
+if __name__ == "__main__":
+    interactive_workflow()
