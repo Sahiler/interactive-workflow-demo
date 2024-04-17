@@ -11,7 +11,7 @@ DEFAULT_EXTRACT_QUERY = "Group by location and count the number of users in each
 GENERATE_SUGGESTED_FILE_NAME = "10-letter phrase that describes the user's query: "
 
 class userApprovalAndFileName(RunInput):
-    file_name: constr(pattern=r"^[a-z]+$", max_length=10)
+    file_name: constr(pattern=r"^[a-zA-Z]+$", max_length=10)
     approve: bool = Field(description="Would you like to approve?")
 
 
@@ -20,7 +20,7 @@ class InputQuery(RunInput):
 
 
 class generatedFileName(BaseModel):
-    fixed_length_string: constr(pattern=r"^[a-z]+$", min_length=10, max_length=10)
+    fixed_length_string: constr(pattern=r"^[a-zA-Z]+$", min_length=10, max_length=10)
 
 
 @flow(name="Extract User Insights")
