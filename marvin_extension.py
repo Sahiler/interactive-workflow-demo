@@ -1,5 +1,5 @@
 import marvin
-from prefect import flow, get_run_logger, pause_flow_run
+from prefect import flow, task, get_run_logger, pause_flow_run
 from prefect.blocks.system import JSON, Secret
 from prefect.input import RunInput
 from prefect_aws.s3 import S3Bucket
@@ -11,7 +11,7 @@ DEFAULT_EXTRACT_QUERY = "Group by location and count the number of users in each
 GENERATE_SUGGESTED_FILE_NAME = "10-letter phrase that describes the user's query: "
 
 class userApprovalAndFileName(RunInput):
-    file_name: constr(pattern=r"^[a-zA-Z]+$", max_length=10)
+    file_name: constr(pattern=r"^[a-z]+$", max_length=10)
     approve: bool = Field(description="Would you like to approve?")
 
 
@@ -20,7 +20,7 @@ class InputQuery(RunInput):
 
 
 class generatedFileName(BaseModel):
-    fixed_length_string: constr(pattern=r"^[a-zA-Z]+$", min_length=10, max_length=10)
+    fixed_length_string: constr(pattern=r"^[a-z]+$", min_length=10, max_length=10)
 
 
 @flow(name="Extract User Insights")
@@ -60,6 +60,19 @@ def extract_information():
     logger.info(f"Query results: {result}")
     return result
 
+@task(retries= 5)
+def generate_suggested_file_name(results):
+    user_query = Variable.get("user_query")
+    instructions = f"{GENERATE_SUGGESTED_FILE_NAME} + {user_query}"
+    marvin_annotated_file_name = marvin.extract(
+        results,
+        target=generatedFileName,
+        instructions=instructions,
+    )
+
+    output_file_name = marvin_annotated_file_name[0].fixed_length_string
+    Variable.set(name=output_file_name, value=output_file_name, overwrite=True)
+    return output_file_name
 
 @flow(name="Upload to S3")
 def upload_to_s3(results):
@@ -73,18 +86,8 @@ def upload_to_s3(results):
         "### Please provide a file name based on the query from results.\n"
         "### A suggestion is provided:"
     )
-    user_query = Variable.get("user_query")
-
-    instructions = f"{GENERATE_SUGGESTED_FILE_NAME} + {user_query.value}"
-    print(instructions)
-    marvin_annotated_file_name = marvin.extract(
-        results,
-        target=generatedFileName,
-        instructions=instructions,
-    )
-
-    output_file_name = marvin_annotated_file_name[0].fixed_length_string
-    Variable.set(name=output_file_name, value=output_file_name, overwrite=True)
+    
+    output_file_name = generate_suggested_file_name(results)
     logger.info(f"output_file_name: {output_file_name}")
 
     upload_to_s3_input = pause_flow_run(
