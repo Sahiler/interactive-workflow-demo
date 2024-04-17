@@ -120,11 +120,11 @@ def create_names():
 
 
 @flow(name="Interactive Workflow")
-def flow():
+def interactive():
     create_names()
     create_artifact()
     results = ai_functions.extract_information()
     ai_functions.upload_to_s3(results)
 
 if __name__ == "__main__":
-    flow()
+    interactive()
