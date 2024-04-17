@@ -8,7 +8,10 @@ from prefect.variables import Variable
 
 
 DEFAULT_EXTRACT_QUERY = "Group by location and count the number of users in each location."  # Create a table of a users name, location, coordinates, and continent the user is located
-GENERATE_SUGGESTED_FILE_NAME = "Output a 10-letter single word that describes the user's query: "
+GENERATE_SUGGESTED_FILE_NAME = (
+    "Output a 10-letter single word that describes the user's query: "
+)
+
 
 class userApprovalAndFileName(RunInput):
     file_name: constr(pattern=r"^[a-zA-Z]+$", max_length=10)
@@ -60,6 +63,7 @@ def extract_information():
     logger.info(f"Query results: {result}")
     return result
 
+
 @task(name="Generate Suggested File Name")
 def generate_suggested_file_name(results):
     user_query = Variable.get("user_query")
@@ -74,6 +78,7 @@ def generate_suggested_file_name(results):
     Variable.set(name=output_file_name, value=output_file_name, overwrite=True)
     return output_file_name
 
+
 @flow(name="Upload to S3")
 def upload_to_s3(results):
     logger = get_run_logger()
@@ -86,7 +91,7 @@ def upload_to_s3(results):
         "### Please provide a file name based on the query from results.\n"
         "### A suggestion is provided:"
     )
-    
+
     output_file_name = generate_suggested_file_name(results)
     logger.info(f"output_file_name: {output_file_name}")
 
@@ -102,10 +107,11 @@ def upload_to_s3(results):
         logger.info("Report approved! Uploading to s3...")
         with open(f"./{output_file_name}.txt", "w") as outfile:
             outfile.write(str(results))
-        pass
+            pass
 
         s3_bucket_block.upload_from_path(
-            f"./{output_file_name}.txt", f"interactive_flow_file_outputs/{output_file_name}.txt"
+            f"./{output_file_name}.txt",
+            f"interactive_flow_file_outputs/{output_file_name}.txt",
         )
     else:
         raise Exception("User did not approve")
