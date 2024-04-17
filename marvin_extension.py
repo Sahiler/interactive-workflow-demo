@@ -8,7 +8,7 @@ from prefect.variables import Variable
 
 
 DEFAULT_EXTRACT_QUERY = "Group by location and count the number of users in each location."  # Create a table of a users name, location, coordinates, and continent the user is located
-GENERATE_SUGGESTED_FILE_NAME = "10-letter phrase that describes the user's query: "
+GENERATE_SUGGESTED_FILE_NAME = "Output a 10-letter single word that describes the user's query: "
 
 class userApprovalAndFileName(RunInput):
     file_name: constr(pattern=r"^[a-zA-Z]+$", max_length=10)
@@ -60,7 +60,7 @@ def extract_information():
     logger.info(f"Query results: {result}")
     return result
 
-@task(retries= 5)
+@task(name="Generate Suggested File Name")
 def generate_suggested_file_name(results):
     user_query = Variable.get("user_query")
     instructions = f"{GENERATE_SUGGESTED_FILE_NAME} + {user_query}"
