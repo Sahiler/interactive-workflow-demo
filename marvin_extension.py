@@ -92,7 +92,9 @@ def upload_to_s3(results):
         "### A suggestion is provided:"
     )
 
-    output_file_name = generate_suggested_file_name(results)
+    # extract providing flaky results, in the meantime just use a static file name
+    # output_file_name = generate_suggested_file_name(results)
+    output_file_name = "marvin_extracted_results"
     logger.info(f"output_file_name: {output_file_name}")
 
     upload_to_s3_input = pause_flow_run(
